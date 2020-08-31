@@ -1,0 +1,47 @@
+public class Rollup_Methods {
+    public static void rollupStatementsToRentalAgreement(List<Statement__c> statements){
+        Set<ID> rentalAgreementSet = new Set<ID>();	
+        
+        for(Statement__c s:statements){
+            rentalAgreementSet.add(s.Rental_Agreement__c);
+        }
+        
+        //this list will store rental aagreements , which needs to update
+        List<Rental_Agreement__c> rentalUpdates=new List<Rental_Agreement__c>();	
+        
+        //agreegate query to sum total amount from statement
+        for(AggregateResult ar:[Select sum(Total_Amount__c) totalInvoice, rental_agreement__c from Statement__c 
+                                where rental_agreement__c IN :rentalAgreementSet group by rental_agreement__c ])
+        {
+            Rental_Agreement__c c=new Rental_Agreement__c(ID=string.valueOf(ar.get('rental_agreement__c')));
+            c.Total_Invoiced__c=double.valueOf(ar.get('totalInvoice'));
+            rentalUpdates.add(c);
+        }
+        
+        if(!rentalUpdates.isEmpty()){
+            update rentalUpdates;
+        }
+    }
+    
+    
+    public Static void rollupPaymentsToRentalAgreement(Map<Id,Payment2__c> paymentsMap){
+         Set<ID> rentalAgreementSet = new Set<ID>();	
+        
+        for(Payment2__c p:[Select Id,Statement__r.Rental_Agreement__c 
+                           from Payment2__c where ID IN: paymentsMap.keySet()]){
+            rentalAgreementSet.add(p.Statement__r.Rental_Agreement__c);
+        }
+        
+        List<Rental_Agreement__c> rentalUpdates=new List<Rental_Agreement__c>();
+        for(AggregateResult ar:[Select sum(Amount__c) totalPaid, Statement__r.Rental_Agreement__c ra from Payment2__c
+              where Statement__r.Rental_Agreement__c IN :rentalAgreementSet group by Statement__r.Rental_Agreement__c ]){
+                  Rental_Agreement__c r=new Rental_Agreement__c(Id=String.valueOf(ar.get('ra')));
+                  r.Total_Payments__c=double.valueOf(ar.get('totalPaid'));
+                  rentalUpdates.add(r);
+              }
+        
+        if(!rentalUpdates.isEmpty()){
+            update rentalUpdates;
+        }
+    }
+}
